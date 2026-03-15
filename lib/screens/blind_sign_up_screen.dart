@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/colors.dart';
 import 'blind_dashboard_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BlindSignUpScreen extends StatefulWidget {
   const BlindSignUpScreen({Key? key}) : super(key: key);
@@ -14,6 +15,59 @@ class BlindSignUpScreen extends StatefulWidget {
 class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
   XFile? _imageFile;
   final ImagePicker _picker = ImagePicker();
+
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _bloodGroupController = TextEditingController();
+  final _blindNameController = TextEditingController();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _ageController.dispose();
+    _bloodGroupController.dispose();
+    _blindNameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signUp() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      if (response.user != null) {
+        await Supabase.instance.client.from('profiles').insert({
+          'id': response.user!.id,
+          'full_name': _fullNameController.text.trim(),
+          'age': int.tryParse(_ageController.text.trim()) ?? 0,
+          'blood_group': _bloodGroupController.text.trim(),
+          'role': 'blind',
+        });
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -116,10 +170,16 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
               title: "Blind User Details",
               children: [
                 _buildLabel("Blind name (Username)"),
-                _buildTextField("Enter blind-name"),
+                _buildTextField("Enter blind-name", controller: _blindNameController),
                 const SizedBox(height: 16),
                 _buildLabel("Full Name"),
-                _buildTextField("Enter full name"),
+                _buildTextField("Enter full name", controller: _fullNameController),
+                const SizedBox(height: 16),
+                _buildLabel("Email"),
+                _buildTextField("Enter email", controller: _emailController),
+                const SizedBox(height: 16),
+                _buildLabel("Password"),
+                _buildTextField("Enter password", controller: _passwordController, obscureText: true),
               ],
             ),
             const SizedBox(height: 20),
@@ -135,7 +195,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildLabel("Blood Group"),
-                          _buildTextField("O+, AB-"),
+                          _buildTextField("O+, AB-", controller: _bloodGroupController),
                         ],
                       ),
                     ),
@@ -145,7 +205,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildLabel("Age"),
-                          _buildTextField("25"),
+                          _buildTextField("25", controller: _ageController),
                         ],
                       ),
                     ),
@@ -192,12 +252,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
 
             // Action Buttons
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
-                );
-              },
+              onPressed: _isLoading ? null : _signUp,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF4081),
                 minimumSize: const Size(double.infinity, 60),
@@ -208,13 +263,13 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Text(
-                    "Create Account",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    _isLoading ? "Creating..." : "Create Account",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(width: 10),
-                  Icon(Icons.arrow_forward),
+                  const SizedBox(width: 10),
+                  const Icon(Icons.arrow_forward),
                 ],
               ),
             ),
@@ -282,7 +337,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
     );
   }
 
-  Widget _buildTextField(String hint, {IconData? suffixIcon}) {
+  Widget _buildTextField(String hint, {IconData? suffixIcon, TextEditingController? controller, bool obscureText = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.2),
@@ -290,6 +345,8 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
         border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: TextField(
+        controller: controller,
+        obscureText: obscureText,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,
