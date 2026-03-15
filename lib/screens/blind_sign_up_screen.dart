@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../utils/colors.dart';
 import 'blind_dashboard_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 class BlindSignUpScreen extends StatefulWidget {
   const BlindSignUpScreen({Key? key}) : super(key: key);
@@ -22,6 +21,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
   final _ageController = TextEditingController();
   final _bloodGroupController = TextEditingController();
   final _blindNameController = TextEditingController();
+  final _caretakerEmailController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -33,36 +33,108 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
     _ageController.dispose();
     _bloodGroupController.dispose();
     _blindNameController.dispose();
+    _caretakerEmailController.dispose();
     super.dispose();
   }
 
   Future<void> _signUp() async {
+    // Basic validation
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty ||
+        _caretakerEmailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields including Caretaker Email.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client.auth.signUp(
+      final blindId = await authService.signUpBlindUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        fullName: _fullNameController.text.trim(),
+        age: int.tryParse(_ageController.text.trim()) ?? 0,
+        bloodGroup: _bloodGroupController.text.trim(),
+        caretakerEmail: _caretakerEmailController.text.trim(),
       );
 
-      if (response.user != null) {
-        await Supabase.instance.client.from('profiles').insert({
-          'id': response.user!.id,
-          'full_name': _fullNameController.text.trim(),
-          'age': int.tryParse(_ageController.text.trim()) ?? 0,
-          'blood_group': _bloodGroupController.text.trim(),
-          'role': 'blind',
-        });
+      if (!mounted) return;
 
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
-        );
-      }
+      // Show success dialog before navigating
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: const Color(0xFF2C1B28),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Color(0xFFFF4081), size: 28),
+              SizedBox(width: 10),
+              Text('Account Created!', style: TextStyle(color: Colors.white, fontSize: 18)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your Unique Blind ID has been emailed to your caretaker:',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _caretakerEmailController.text.trim(),
+                style: const TextStyle(color: Color(0xFFFF4081), fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Your Blind ID (for reference):', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  blindId,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4081),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('Go to Dashboard'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 4),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -241,8 +313,19 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
                 _buildLabel("Caretaker Name"),
                 _buildTextField("Enter caretaker's full name"),
                 const SizedBox(height: 16),
-                _buildLabel("Caretaker Email (Gmail)"),
-                _buildTextField("example@gmail.com"),
+                _buildLabel("Caretaker Email (Gmail) ★"),
+                _buildTextField(
+                  "example@gmail.com",
+                  controller: _caretakerEmailController,
+                ),
+                const SizedBox(height: 6),
+                const Padding(
+                  padding: EdgeInsets.only(left: 4.0),
+                  child: Text(
+                    '★ The Unique Blind ID will be emailed here.',
+                    style: TextStyle(color: Color(0xFFFF4081), fontSize: 12),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildLabel("Caretaker Phone Number"),
                 _buildTextField("+1 (555) 000-0000"),

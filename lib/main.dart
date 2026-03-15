@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'screens/blind_dashboard_screen.dart';
 import 'screens/caretaker_dashboard_screen.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Load environment variables from .env file
+  await dotenv.load(fileName: '.env');
+
   await Supabase.initialize(
-    url: 'https://llchskoxgnahykorabhh.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsY2hza294Z25haHlrb3JhYmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDUzMzQsImV4cCI6MjA4ODIyMTMzNH0.oV7VbPZ-HZ3sFiTmK-0qkhbOQCe8BaKuWILYV4SOjgY',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const MyApp());
@@ -26,9 +31,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFF48FB1)),
         useMaterial3: true,
-        fontFamily: 'Roboto', 
+        fontFamily: 'Roboto',
       ),
-      home: const AuthWrapper(), 
+      home: const AuthWrapper(),
     );
   }
 }
@@ -50,15 +55,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void _checkSession() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session != null) {
-      final userId = session.user.id;
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
-      
-      final role = response['role'] as String?;
-      
+      final role = await authService.getUserRole(session.user.id);
+
       if (!mounted) return;
 
       if (role == 'blind') {
@@ -69,11 +67,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const CaretakerDashboardScreen()),
         );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
       }
+      // If role is null/unknown, stay on HomeScreen (default below)
     }
   }
 

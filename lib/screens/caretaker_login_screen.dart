@@ -6,7 +6,7 @@ import '../widgets/gradient_button.dart';
 import '../widgets/sliding_tab.dart';
 import '../widgets/animated_avatar.dart';
 import 'caretaker_dashboard_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
 class CaretakerLoginScreen extends StatefulWidget {
   const CaretakerLoginScreen({Key? key}) : super(key: key);
@@ -36,39 +36,51 @@ class _CaretakerLoginScreenState extends State<CaretakerLoginScreen> {
     setState(() => _isLoading = true);
     try {
       if (_currentTabIndex == 0) {
-        // Sign Up
-        final response = await Supabase.instance.client.auth.signUp(
+        // ── SIGN UP ──
+        if (_emailController.text.trim().isEmpty ||
+            _passwordController.text.trim().isEmpty ||
+            _blindIdController.text.trim().isEmpty) {
+          throw Exception('Please fill all fields including your Blind User ID.');
+        }
+
+        await authService.signUpCaretakerUser(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
+          blindUniqueId: _blindIdController.text.trim().toUpperCase(),
         );
 
-        if (response.user != null) {
-          await Supabase.instance.client.from('profiles').insert({
-            'id': response.user!.id,
-            'role': 'caretaker',
-            'email': _emailController.text.trim(),
-            // 'blind_id': _blindIdController.text.trim(), // Optional: if you have a blind_id column
-          });
-
-          if (!mounted) return;
-          _navigateToDashboard();
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created! You are now linked to your blind user.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        _navigateToDashboard();
       } else {
-        // Sign In
-        final response = await Supabase.instance.client.auth.signInWithPassword(
+        // ── SIGN IN ──
+        if (_emailController.text.trim().isEmpty ||
+            _passwordController.text.trim().isEmpty) {
+          throw Exception('Please enter your email and password.');
+        }
+
+        await authService.signIn(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        if (response.session != null) {
-          if (!mounted) return;
-          _navigateToDashboard();
-        }
+        if (!mounted) return;
+        _navigateToDashboard();
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 4),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -166,10 +178,17 @@ class _CaretakerLoginScreenState extends State<CaretakerLoginScreen> {
                               controller: _passwordController,
                             ),
                             CustomTextField(
-                              labelText: 'BlindID',
-                              hintText: 'Enter BlindID',
+                              labelText: 'Blind User ID ★',
+                              hintText: 'e.g. SE-ABCD12',
                               prefixIcon: Icons.person_search,
                               controller: _blindIdController,
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0, left: 4.0, bottom: 4.0),
+                              child: Text(
+                                '★ Check the email sent to your blind user\'s caretaker email.',
+                                style: TextStyle(color: Colors.white54, fontSize: 11),
+                              ),
                             ),
                             const SizedBox(height: 32),
                             GradientButton(
