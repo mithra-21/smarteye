@@ -1,25 +1,87 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import '../utils/colors.dart';
+import '../services/auth_service.dart';
 import 'blind_sign_up_screen.dart';
 import 'blind_dashboard_screen.dart';
 
-class BlindScreen extends StatelessWidget {
+class BlindScreen extends StatefulWidget {
   const BlindScreen({Key? key}) : super(key: key);
+
+  @override
+  State<BlindScreen> createState() => _BlindScreenState();
+}
+
+class _BlindScreenState extends State<BlindScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both email and password.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final result = await authService.signIn(
+        email: email,
+        password: password,
+      );
+
+      // Verify this is a blind user
+      if (result['role'] != 'blind') {
+        await authService.signOut();
+        throw Exception('This account is not a blind user account. Please use Caretaker Login.');
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Fallback color
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
           // Background Image Layer (Full Screen)
           Positioned.fill(
             child: Image.asset(
-              'assets/images/blind1.png', // Corrected asset name based on user request
+              'assets/images/blind1.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
-                // High-quality fallback gradient if image is missing
                 return Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -43,7 +105,7 @@ class BlindScreen extends StatelessWidget {
                     "Keep your face to the sunshine and you cannot see the shadows.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: 'Georgia', // Serif-style font
+                      fontFamily: 'Georgia',
                       fontSize: 22,
                       color: Colors.white,
                       fontStyle: FontStyle.italic,
@@ -80,11 +142,11 @@ class BlindScreen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(40),
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10), // User requested sigma 10
+                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.25), // Dark translucency
+                      color: Colors.black.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(40),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.15),
@@ -104,15 +166,17 @@ class BlindScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 32),
+
+                        // Email input
+                        _buildInputField(Icons.alternate_email, "Email Address", _emailController, false),
+                        const SizedBox(height: 16),
+                        // Password input
+                        _buildInputField(Icons.fingerprint, "Password", _passwordController, true),
+                        const SizedBox(height: 24),
                         
-                        // Sign In Button (The main action)
+                        // Sign In Button
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const BlindDashboardScreen()),
-                            );
-                          },
+                          onTap: _isLoading ? null : _handleSignIn,
                           child: Container(
                             width: double.infinity,
                             height: 64,
@@ -132,21 +196,30 @@ class BlindScreen extends StatelessWidget {
                               ],
                             ),
                             child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Text(
-                                    "Sign In",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Sign In",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(width: 12),
+                                        Icon(Icons.check_circle_outline, color: Colors.white),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Icon(Icons.check_circle_outline, color: Colors.white),
-                                ],
-                              ),
                             ),
                           ),
                         ),
@@ -180,13 +253,6 @@ class BlindScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        
-                        const SizedBox(height: 32),
-                        
-                        // Inputs (Glass-styled placeholders)
-                        _buildInputField(Icons.alternate_email, "Email Address"),
-                        const SizedBox(height: 16),
-                        _buildInputField(Icons.fingerprint, "Password"),
                         const SizedBox(height: 10),
                       ],
                     ),
@@ -200,7 +266,7 @@ class BlindScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInputField(IconData icon, String hint) {
+  Widget _buildInputField(IconData icon, String hint, TextEditingController controller, bool obscure) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
@@ -209,6 +275,8 @@ class BlindScreen extends StatelessWidget {
         border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: TextField(
+        controller: controller,
+        obscureText: obscure,
         style: const TextStyle(color: Colors.white),
         cursorColor: Colors.white24,
         decoration: InputDecoration(

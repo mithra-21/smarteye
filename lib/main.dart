@@ -38,42 +38,21 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    _checkSession();
-  }
-
-  void _checkSession() async {
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
-      final role = await authService.getUserRole(session.user.id);
-
-      if (!mounted) return;
-
-      if (role == 'blind') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const BlindDashboardScreen()),
-        );
-      } else if (role == 'caretaker') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const CaretakerDashboardScreen()),
-        );
-      }
-      // If role is null/unknown, stay on HomeScreen (default below)
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Check if user is already logged in (in-memory session)
+    if (authService.isLoggedIn) {
+      final role = authService.getUserRole();
+      if (role == 'blind') {
+        return const BlindDashboardScreen();
+      } else if (role == 'caretaker') {
+        return const CaretakerDashboardScreen();
+      }
+    }
+    // Not logged in → show home/login screen
     return const HomeScreen();
   }
 }

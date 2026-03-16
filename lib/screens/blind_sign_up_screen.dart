@@ -21,7 +21,13 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
   final _ageController = TextEditingController();
   final _bloodGroupController = TextEditingController();
   final _blindNameController = TextEditingController();
+  final _dobController = TextEditingController();
+  final _diseaseController = TextEditingController();
+  final _addressLine1Controller = TextEditingController();
+  final _addressLine2Controller = TextEditingController();
+  final _caretakerNameController = TextEditingController();
   final _caretakerEmailController = TextEditingController();
+  final _caretakerPhoneController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -33,7 +39,13 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
     _ageController.dispose();
     _bloodGroupController.dispose();
     _blindNameController.dispose();
+    _dobController.dispose();
+    _diseaseController.dispose();
+    _addressLine1Controller.dispose();
+    _addressLine2Controller.dispose();
+    _caretakerNameController.dispose();
     _caretakerEmailController.dispose();
+    _caretakerPhoneController.dispose();
     super.dispose();
   }
 
@@ -57,6 +69,13 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
         age: int.tryParse(_ageController.text.trim()) ?? 0,
         bloodGroup: _bloodGroupController.text.trim(),
         caretakerEmail: _caretakerEmailController.text.trim(),
+        blindName: _blindNameController.text.trim(),
+        dateOfBirth: _dobController.text.trim(),
+        diseaseCondition: _diseaseController.text.trim(),
+        addressLine1: _addressLine1Controller.text.trim(),
+        addressLine2: _addressLine2Controller.text.trim(),
+        caretakerName: _caretakerNameController.text.trim(),
+        caretakerPhone: _caretakerPhoneController.text.trim(),
       );
 
       if (!mounted) return;
@@ -285,10 +304,10 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildLabel("Birthdate"),
-                _buildTextField("mm/dd/yyyy", suffixIcon: Icons.calendar_today),
+                _buildTextField("mm/dd/yyyy", suffixIcon: Icons.calendar_today, controller: _dobController),
                 const SizedBox(height: 16),
                 _buildLabel("Disease/Condition"),
-                _buildTextField("Glaucoma, Cataract, etc."),
+                _buildTextField("Glaucoma, Cataract, etc.", controller: _diseaseController),
               ],
             ),
             const SizedBox(height: 20),
@@ -298,10 +317,10 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
               title: "Address Information",
               children: [
                 _buildLabel("Address Line 1"),
-                _buildTextField("Street, apartment, floor"),
+                _buildTextField("Street, apartment, floor", controller: _addressLine1Controller),
                 const SizedBox(height: 16),
                 _buildLabel("Address Line 2 (Optional)"),
-                _buildTextField("Area, city, landmark"),
+                _buildTextField("Area, city, landmark", controller: _addressLine2Controller),
               ],
             ),
             const SizedBox(height: 20),
@@ -311,7 +330,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
               title: "Caretaker Details",
               children: [
                 _buildLabel("Caretaker Name"),
-                _buildTextField("Enter caretaker's full name"),
+                _buildTextField("Enter caretaker's full name", controller: _caretakerNameController),
                 const SizedBox(height: 16),
                 _buildLabel("Caretaker Email (Gmail) ★"),
                 _buildTextField(
@@ -328,7 +347,7 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildLabel("Caretaker Phone Number"),
-                _buildTextField("+1 (555) 000-0000"),
+                _buildTextField("+1 (555) 000-0000", controller: _caretakerPhoneController),
               ],
             ),
             const SizedBox(height: 40),
