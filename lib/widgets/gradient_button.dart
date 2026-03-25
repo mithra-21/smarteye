@@ -3,7 +3,7 @@ import '../utils/colors.dart';
 
 class GradientButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed; // ← nullable now
   final LinearGradient gradient;
   final IconData? suffixIcon;
 
@@ -36,7 +36,7 @@ class GradientButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
-          onTap: onPressed,
+          onTap: onPressed != null ? () => onPressed!() : null, // ← fixed
           child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -46,7 +46,7 @@ class GradientButton extends StatelessWidget {
                   Text(
                     text,
                     style: const TextStyle(
-                      color: AppColors.textDark, // Dark text on white/orange gradient looks better, but spec says wait... Spec didn't specify text color. Let's use white or dark red. Let's use dark red for contrast on the white top.
+                      color: AppColors.textDark,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,

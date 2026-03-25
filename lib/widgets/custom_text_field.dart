@@ -6,6 +6,7 @@ class CustomTextField extends StatelessWidget {
   final IconData prefixIcon;
   final bool obscureText;
   final TextInputType keyboardType;
+  final TextEditingController? controller;
 
   const CustomTextField({
     Key? key,
@@ -14,6 +15,7 @@ class CustomTextField extends StatelessWidget {
     required this.prefixIcon,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
+    this.controller,
   }) : super(key: key);
 
   @override
@@ -42,7 +44,7 @@ class CustomTextField extends StatelessWidget {
                 color: Colors.black.withOpacity(0.2),
                 blurRadius: 10,
                 spreadRadius: -2,
-                offset: const Offset(0, inset ? 2 : 0), // Simulate inset roughly
+                offset: const Offset(0, 2),
               )
             ],
           ),
@@ -58,6 +60,7 @@ class CustomTextField extends StatelessWidget {
               ),
               Expanded(
                 child: TextField(
+                  controller: controller,
                   obscureText: obscureText,
                   keyboardType: keyboardType,
                   style: const TextStyle(
@@ -96,4 +99,3 @@ class CustomTextField extends StatelessWidget {
     );
   }
 }
-const bool inset = true;
