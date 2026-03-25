@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server/gmail.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/colors.dart';
@@ -132,6 +134,13 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
 
       print('Caretaker saved!');
 
+      // Send email to caretaker with BlindID
+      await _sendEmailToCaretaker(
+        caretakerEmail: _caretakerEmailController.text.trim(),
+        uniqueId: uniqueId,
+        blindUserName: _fullNameController.text.trim(),
+      );
+
       // 5. Navigate to dashboard
       if (mounted) {
         Navigator.pushReplacement(
@@ -151,6 +160,36 @@ class _BlindSignUpScreenState extends State<BlindSignUpScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _sendEmailToCaretaker({
+    required String caretakerEmail,
+    required String uniqueId,
+    required String blindUserName,
+  }) async {
+    final smtpServer = gmail(
+      'smarteyenotify@gmail.com',
+      'gpqj uicd odyc ckuj',
+    );
+
+    final message = Message()
+      ..from = Address('smarteyenotify@gmail.com', 'Smart Eye')
+      ..recipients.add(caretakerEmail)
+      ..subject = 'You have been added as a caretaker on Smart Eye'
+      ..text = '''
+Hi!
+
+$blindUserName has added you as their caretaker on Smart Eye.
+
+Your BlindID: $uniqueId
+
+Download Smart Eye app and enter this BlindID 
+during signup to link with them.
+
+- Smart Eye Team
+    ''';
+
+    await send(message, smtpServer);
   }
 
   @override
