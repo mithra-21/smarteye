@@ -66,67 +66,6 @@ class BlindDashboardScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // Profile Section
-            Center(
-              child: Column(
-                children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFD386A8),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFD386A8).withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const CircleAvatar(
-                          radius: 60,
-                          backgroundImage: NetworkImage('https://i.pravatar.cc/300?img=11'), // Placeholder image
-                        ),
-                      ),
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF130C14), width: 4),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Alex Johnson",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Text(
-                    "SUPPORT NETWORK ACTIVE",
-                    style: TextStyle(
-                      color: Color(0xFFD386A8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
 
             // Main Action Buttons
             _buildMainButton(

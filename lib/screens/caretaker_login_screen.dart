@@ -83,12 +83,15 @@ class _CaretakerLoginScreenState extends State<CaretakerLoginScreen> {
       if (userId == null) throw Exception('Signup failed');
 
       // 3. Update caretaker row with auth id
-      await Supabase.instance.client
+      final updateResult = await Supabase.instance.client
           .from('caretakers')
           .update({'id': userId})
-          .eq('blind_user_id', _blindIdController.text.trim());
+          .eq('blind_user_id', _blindIdController.text.trim())
+          .select();
 
-      print('Caretaker signup success! id updated: $userId');
+      print('BlindID entered: ${_blindIdController.text.trim()}');
+      print('userId: $userId');
+      print('Update result: $updateResult');
 
       // 4. Navigate to dashboard
       if (mounted) {
