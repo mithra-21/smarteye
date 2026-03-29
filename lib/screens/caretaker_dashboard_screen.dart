@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/colors.dart';
 import '../widgets/glass_card.dart';
 import 'home_screen.dart' as import_home;
@@ -18,79 +19,32 @@ class CaretakerDashboardScreen extends StatefulWidget {
 class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
   int _currentIndex = 0;
   final LatLng _dummyLocation = const LatLng(12.9716, 77.5946); // Bangalore
-  late final MapController _mapController;
-  late final TextEditingController _searchController;
-  bool _isSearching = false;
+  String _caretakerName = 'Loading...';
 
   @override
   void initState() {
     super.initState();
-    _mapController = MapController();
-    _searchController = TextEditingController();
+    _fetchCaretakerName();
   }
 
-  @override
-  void dispose() {
-    _mapController.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _recenterMap() {
-    _mapController.move(_dummyLocation, 14.0);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Re-centered to live location'), duration: Duration(seconds: 1)),
-    );
-  }
-
-  Future<void> _searchLocation(String query) async {
-    if (query.isEmpty) return;
-
-    setState(() => _isSearching = true);
-
+  Future<void> _fetchCaretakerName() async {
     try {
-      final response = await http.get(
-        Uri.parse('https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1'),
-        headers: {
-          'User-Agent': 'SmartEye_BTech_Project',
-          'Accept-Language': 'en',
-        },
-      );
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
 
-      if (response.statusCode == 200) {
-        final List results = json.decode(response.body);
-        if (results.isNotEmpty) {
-          final lat = double.parse(results[0]['lat']);
-          final lon = double.parse(results[0]['lon']);
-          final LatLng target = LatLng(lat, lon);
+      final data = await Supabase.instance.client
+          .from('caretakers')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
 
-          _mapController.move(target, 14.0);
-          
-          // Professional touch: dismiss keyboard
-          FocusScope.of(context).unfocus();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Found: ${results[0]['display_name'].split(',')[0]}'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location not found. Try a more specific name.')),
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Search service unavailable. Please try later.')),
-        );
+      if (data != null && mounted) {
+        setState(() {
+          _caretakerName = data['full_name'] ?? 'Caretaker';
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No internet connection.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isSearching = false);
+      print('Error fetching caretaker name: $e');
     }
   }
 
@@ -128,6 +82,16 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
     );
   }
 
+  void _openFullScreenMap() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenMapPage(
+          dummyLocation: _dummyLocation,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,9 +106,9 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
             index: _currentIndex,
             children: [
               _buildHomeView(),
-              _buildExplorerView(),
-              _buildAlertsView(),
+              _buildSystemSettingsView(),
               _buildSettingsView(),
+              _buildAlertsView(),
             ],
           ),
         ),
@@ -181,7 +145,7 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
               children: [
                 const SizedBox(height: 10),
                 GestureDetector(
-                  onTap: () => _onTabTapped(1),
+                  onTap: _openFullScreenMap,
                   child: GlassCard(
                     padding: const EdgeInsets.all(0),
                     height: 200,
@@ -212,7 +176,7 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => _onTabTapped(1),
+                        onTap: _openFullScreenMap,
                         child: GlassCard(
                           height: 120,
                           padding: const EdgeInsets.all(16),
@@ -247,110 +211,172 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
     );
   }
 
-  Widget _buildExplorerView() {
-  return Stack(
-    children: [
-      FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: _dummyLocation,
-          initialZoom: 14.0,
-        ),
+  Widget _buildSystemSettingsView() {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TileLayer(
-            urlTemplate: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.newapp',
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: _dummyLocation,
-                width: 60,
-                height: 60,
-                child: const _PulsingMarker(),
-              ),
-            ],
+          const Text('Device Status', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 8),
+          Text('Blind person\'s device info', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7))),
+          const SizedBox(height: 24),
+          Expanded(
+            child: ListView(
+              children: [
+                // Battery Card
+                _buildDeviceInfoCard(
+                  icon: Icons.battery_3_bar_rounded,
+                  iconColor: Colors.green,
+                  title: 'Battery',
+                  value: '72%',
+                  subtitle: 'Charging · Est. 1h 20m to full',
+                  trailing: _buildBatteryIndicator(0.72),
+                ),
+                const SizedBox(height: 12),
+                // Network / Connectivity
+                _buildDeviceInfoCard(
+                  icon: Icons.wifi_rounded,
+                  iconColor: Colors.blue,
+                  title: 'Wi-Fi',
+                  value: 'Connected',
+                  subtitle: 'SmartEye_Home · Signal: Strong',
+                ),
+                const SizedBox(height: 12),
+                _buildDeviceInfoCard(
+                  icon: Icons.signal_cellular_alt_rounded,
+                  iconColor: Colors.orange,
+                  title: 'Mobile Data',
+                  value: '4G LTE',
+                  subtitle: 'Carrier: Jio · Signal: Good',
+                ),
+                const SizedBox(height: 12),
+                // Bluetooth
+                _buildDeviceInfoCard(
+                  icon: Icons.bluetooth_connected_rounded,
+                  iconColor: Colors.indigo,
+                  title: 'Bluetooth',
+                  value: 'Connected',
+                  subtitle: 'SmartEye Earpiece · Bone Conductor',
+                ),
+                const SizedBox(height: 12),
+                // Screen Reader / Accessibility
+                _buildDeviceInfoCard(
+                  icon: Icons.accessibility_new_rounded,
+                  iconColor: Colors.teal,
+                  title: 'Screen Reader',
+                  value: 'TalkBack ON',
+                  subtitle: 'Voice speed: Normal · Language: English',
+                ),
+                const SizedBox(height: 12),
+                // Volume
+                _buildDeviceInfoCard(
+                  icon: Icons.volume_up_rounded,
+                  iconColor: Colors.purple,
+                  title: 'Volume',
+                  value: '85%',
+                  subtitle: 'Media volume · Haptic feedback: ON',
+                ),
+                const SizedBox(height: 12),
+                // Storage
+                _buildDeviceInfoCard(
+                  icon: Icons.storage_rounded,
+                  iconColor: Colors.amber,
+                  title: 'Storage',
+                  value: '24.3 GB free',
+                  subtitle: '64 GB total · App data: 8.2 GB',
+                ),
+                const SizedBox(height: 12),
+                // GPS / Location
+                _buildDeviceInfoCard(
+                  icon: Icons.gps_fixed_rounded,
+                  iconColor: Colors.red,
+                  title: 'GPS',
+                  value: 'Active',
+                  subtitle: 'High accuracy mode · Last fix: Just now',
+                ),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
 
-      // ✅ Search bar (add this back)
-      Positioned(
-        top: 20,
-        left: 20,
-        right: 20,
-        child: GlassCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: AppColors.textDark),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  enabled: !_isSearching,
-                  onSubmitted: _searchLocation,
-                  style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    hintText: _isSearching ? 'Searching...' : 'Search location...',
-                    hintStyle: TextStyle(color: AppColors.textDark.withOpacity(0.5)),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
+  Widget _buildDeviceInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String value,
+    required String subtitle,
+    Widget? trailing,
+  }) {
+    return GlassCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.white)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(value, style: TextStyle(color: iconColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
-              ),
-              if (_isSearching)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.backgroundTop),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.gps_fixed, color: AppColors.backgroundTop),
-                  onPressed: _recenterMap,
-                ),
-            ],
+                const SizedBox(height: 4),
+                Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBatteryIndicator(double level) {
+    return Container(
+      width: 40,
+      height: 20,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.green, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: level,
+          child: Container(
+            decoration: BoxDecoration(
+              color: level > 0.3 ? Colors.green : Colors.red,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
         ),
       ),
-
-
-      // Zoom Controls
-      Positioned(
-        bottom: 150, // Space for bottom nav
-        right: 16,
-        child: Column(
-          children: [
-            FloatingActionButton.small(
-              heroTag: 'zoom_in',
-              onPressed: () {
-                _mapController.move(
-                  _mapController.camera.center,
-                  _mapController.camera.zoom + 1,
-                );
-              },
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.add, color: AppColors.backgroundTop),
-            ),
-            const SizedBox(height: 8),
-            FloatingActionButton.small(
-              heroTag: 'zoom_out',
-              onPressed: () {
-                _mapController.move(
-                  _mapController.camera.center,
-                  _mapController.camera.zoom - 1,
-                );
-              },
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.remove, color: AppColors.backgroundTop),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
+    );
+  }
 
   Widget _buildAlertsView() {
     return Padding(
@@ -387,12 +413,12 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark)),
-                  Text(subtitle, style: const TextStyle(color: AppColors.textDark, fontSize: 13)),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                  Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
                 ],
               ),
             ),
-            Text(time, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            Text(time, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
           ],
         ),
       ),
@@ -406,7 +432,7 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
         children: [
           const CircleAvatar(radius: 50, backgroundColor: Colors.white24, child: Icon(Icons.person, size: 50, color: Colors.white)),
           const SizedBox(height: 16),
-          const Text('Caretaker Name', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(_caretakerName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 32),
           _buildSettingsItem(Icons.person_outline, 'Profile Settings', onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile editing coming soon!')));
@@ -443,11 +469,11 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: isDestructive ? Colors.red : AppColors.textDark),
+              Icon(icon, color: isDestructive ? Colors.redAccent[100] : Colors.white),
               const SizedBox(width: 16),
-              Text(title, style: TextStyle(color: isDestructive ? Colors.red : AppColors.textDark, fontWeight: FontWeight.w600)),
+              Text(title, style: TextStyle(color: isDestructive ? Colors.redAccent[100] : Colors.white, fontWeight: FontWeight.w600)),
               const Spacer(),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.5)),
             ],
           ),
         ),
@@ -467,9 +493,9 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildNavItem(Icons.home_rounded, 'Home', 0),
-          _buildNavItem(Icons.map_rounded, 'Explorer', 1),
-          _buildNavItem(Icons.notifications_rounded, 'Alerts', 2),
-          _buildNavItem(Icons.settings_rounded, 'Settings', 3),
+          _buildNavItem(Icons.phonelink_setup_rounded, 'System', 1),
+          _buildNavItem(Icons.settings_rounded, 'Settings', 2),
+          _buildNavItem(Icons.notifications_rounded, 'Alerts', 3),
         ],
       ),
     );
@@ -490,6 +516,174 @@ class _CaretakerDashboardScreenState extends State<CaretakerDashboardScreen> {
     );
   }
 
+}
+
+class _FullScreenMapPage extends StatefulWidget {
+  final LatLng dummyLocation;
+  const _FullScreenMapPage({Key? key, required this.dummyLocation}) : super(key: key);
+
+  @override
+  State<_FullScreenMapPage> createState() => _FullScreenMapPageState();
+}
+
+class _FullScreenMapPageState extends State<_FullScreenMapPage> {
+  late final MapController _mapController;
+  late final TextEditingController _searchController;
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _recenterMap() {
+    _mapController.move(widget.dummyLocation, 14.0);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Re-centered to live location'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  Future<void> _searchLocation(String query) async {
+    if (query.isEmpty) return;
+    setState(() => _isSearching = true);
+    try {
+      final response = await http.get(
+        Uri.parse('https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1'),
+        headers: {'User-Agent': 'SmartEye_BTech_Project', 'Accept-Language': 'en'},
+      );
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body);
+        if (results.isNotEmpty) {
+          final lat = double.parse(results[0]['lat']);
+          final lon = double.parse(results[0]['lon']);
+          _mapController.move(LatLng(lat, lon), 14.0);
+          FocusScope.of(context).unfocus();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Found: ${results[0]['display_name'].split(',')[0]}'), duration: const Duration(seconds: 2)),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location not found.')),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No internet connection.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: widget.dummyLocation,
+              initialZoom: 14.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.newapp',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: widget.dummyLocation,
+                    width: 60,
+                    height: 60,
+                    child: const _PulsingMarker(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Back button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 16,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
+          // Search bar
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 72,
+            right: 20,
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: AppColors.textDark),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      enabled: !_isSearching,
+                      onSubmitted: _searchLocation,
+                      style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w500),
+                      decoration: InputDecoration(
+                        hintText: _isSearching ? 'Searching...' : 'Search location...',
+                        hintStyle: TextStyle(color: AppColors.textDark.withOpacity(0.5)),
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  if (_isSearching)
+                    const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.backgroundTop))
+                  else
+                    IconButton(icon: const Icon(Icons.gps_fixed, color: AppColors.backgroundTop), onPressed: _recenterMap),
+                ],
+              ),
+            ),
+          ),
+          // Zoom Controls
+          Positioned(
+            bottom: 40,
+            right: 16,
+            child: Column(
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'map_zoom_in',
+                  onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+                  backgroundColor: Colors.white,
+                  child: const Icon(Icons.add, color: AppColors.backgroundTop),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'map_zoom_out',
+                  onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
+                  backgroundColor: Colors.white,
+                  child: const Icon(Icons.remove, color: AppColors.backgroundTop),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StaticMapView extends StatelessWidget {

@@ -75,52 +75,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
 
-            // --- Layer 2: Bubble Logo (Centered in character's bubble) ---
+            // --- Layer 2: Bubble Logo (Always centered) ---
             Positioned(
-              top: screenHeight * 0.15 + 30 + 30, // Centered in the pearl bubble
-              child: RepaintBoundary(
-                child: ScaleTransition(
-                  scale: _logoAnimation,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Semi-transparent Bubble with Glow
-                      Container(
-                        width: 140,
-                        height: 140,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.white.withOpacity(0.5),
-                              Colors.white.withOpacity(0.1),
-                            ],
-                            center: const Alignment(-0.3, -0.3),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
+              top: screenHeight * 0.15 + 30,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: RepaintBoundary(
+                  child: ScaleTransition(
+                    scale: _logoAnimation,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.5),
+                            Colors.white.withOpacity(0.1),
                           ],
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 0.5,
+                          center: const Alignment(-0.3, -0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.4),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Opacity(
+                          opacity: 0.5,
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                      // Logo centered inside the bubble and transparent
-                      Opacity(
-                        opacity: 0.5,
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 110,
-                          height: 110,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
